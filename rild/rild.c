@@ -35,6 +35,8 @@
 #include <private/android_filesystem_config.h>
 #include "hardware/qemu_pipe.h"
 
+#include "radio_monitor.h"
+
 #define LIB_PATH_PROPERTY   "rild.libpath"
 #define LIB_ARGS_PROPERTY   "rild.libargs"
 #define MAX_LIB_ARGS        16
@@ -131,6 +133,21 @@ int main(int argc, char **argv)
     RLOGD("**RIL Daemon Started**");
     RLOGD("**RILd param count=%d**", argc);
 
+	
+	char platform[PROPERTY_VALUE_MAX] = {0};
+	RLOGD("add property_get check");
+	//is telephony platform?
+	if(property_get("ro.sw.embeded.telephony", platform, "false")){
+		RLOGD("platform = %s",platform);
+		if(!strcmp(platform, "false")) {
+			RLOGD("platform: wifi-only");
+			radio_monitor();
+		}
+	     else{
+			RLOGD("platform: telephony");
+		}
+	}
+	
     umask(S_IRGRP | S_IWGRP | S_IXGRP | S_IROTH | S_IWOTH | S_IXOTH);
     for (i = 1; i < argc ;) {
         if (0 == strcmp(argv[i], "-l") && (argc - i > 1)) {
@@ -148,6 +165,8 @@ int main(int argc, char **argv)
         }
     }
 
+	
+
     if (clientId == NULL) {
         clientId = "0";
     } else if (atoi(clientId) >= MAX_RILDS) {
@@ -157,16 +176,18 @@ int main(int argc, char **argv)
     if (strncmp(clientId, "0", MAX_CLIENT_ID_LENGTH)) {
         RIL_setRilSocketName(strncat(rild, clientId, MAX_SOCKET_NAME_LENGTH));
     }
-
-    if (rilLibPath == NULL) {
+	//rilLibPath = "libsoftwinner-ril-4.4.so";
+   if (rilLibPath == NULL) {
         if ( 0 == property_get(LIB_PATH_PROPERTY, libPath, NULL)) {
             // No lib sepcified on the command line, and nothing set in props.
             // Assume "no-ril" case.
+            RLOGD("rilLibPath go done");
             goto done;
         } else {
             rilLibPath = libPath;
         }
     }
+   RLOGD("rilLibPath = %s",rilLibPath);
 
     /* special override when in the emulator */
 #if 1
@@ -275,8 +296,7 @@ int main(int argc, char **argv)
     }
 OpenLib:
 #endif
-    switchUser();
-
+    //switchUser();
     dlHandle = dlopen(rilLibPath, RTLD_NOW);
 
     if (dlHandle == NULL) {
